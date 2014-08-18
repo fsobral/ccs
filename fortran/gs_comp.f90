@@ -145,4 +145,94 @@ contains
 
   end subroutine genDDRandSystem
 
+  subroutine genRandStochSystem(n,A,b,sol)
+
+    ! Generates a linear system associated with the gradient of a
+    ! least squares problem created with a stochastic matrix.
+
+    ! PARAMETERS
+    real(8), parameter :: restartp = 0.2
+    real(8), parameter :: density = 0.1
+    real(8), parameter :: fracimportant = 0.3
+
+    ! ARGUMENTS
+    integer :: n
+    real(8) :: A(n,n),b(n),sol(n)
+
+    intent(out) :: A,b,sol
+    intent(in ) :: n
+
+    ! LOCAL SCALARS
+    integer :: i,j,nlinks,start
+    real(8) :: rnumber,s
+
+    ! LOCAL ARRAYS
+    real(8) :: Eb(n,n)
+    integer :: E(n,n)
+    integer :: links(n*n)
+    
+    start = 1
+
+    do i = 1,n*n
+       links(i) = i
+    end do
+
+    do j = 1,n
+       do i = 1,n
+          E(i,j) = 0
+       end do
+    end do
+
+    do i = 1,n
+       links((i - 1) * n + i) = links(start)
+       start = start + 1
+    end do
+
+    nlinks = 0
+
+    do while (nlinks / (1.0D0 * n) .lt. density)
+
+       CALL RANDOM_NUMBER(rnumber)
+       pos = INT(rnumber * (n*n - start)) + start
+       
+       i = 1 + INT(links(pos) / n)
+       j = links(pos) - (i - 1) * n
+
+       E(i,j) = 1
+       links(pos) = links(start)
+       start = start + 1
+
+       nlinks = nlinks + 1
+
+    end do
+
+    do j = 1,n
+       s = 0.0D0
+       do i = 1,n
+          s = s + E(i,j)
+       end do
+       do i = 1,n
+          Eb(i,j) = max(1.0D0 / (1.0D0 * n), E(i,j) / s)
+       end do
+    end do
+
+    do i = 1,n
+       do j = 1,n          
+          s = - Eb(j,i) - Eb(i,j)
+          if (i .eq. j) then
+             s = s + 1.0D0
+          end if
+          do k = 1,n
+             s = s + Eb(k,i) * Eb(j,k)
+          end do
+          A(i,j) = s
+       end do
+    end do
+
+    do i = 1,n
+       b(i) = 0.0D0
+    end do
+
+  end subroutine genRandStochSystem
+
 END PROGRAM gs_comp
