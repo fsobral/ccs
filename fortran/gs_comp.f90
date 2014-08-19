@@ -45,7 +45,7 @@ PROGRAM gs_comp
 
   do k = 1,trials
 
-     call genDDRandSystem(n,M,b,sol)
+     call genRandStochSystem(n,M,b,sol)
 
      do i = 1,n
         x(i) = 0.0D0
@@ -77,7 +77,7 @@ PROGRAM gs_comp
 
   do k = 1,trials
 
-     call genDDRandSystem(n,M,b,sol)
+     call genRandStochSystem(n,M,b,sol)
 
      do i = 1,n
         x(i) = 0.0D0
@@ -151,9 +151,10 @@ contains
     ! least squares problem created with a stochastic matrix.
 
     ! PARAMETERS
-    real(8), parameter :: restartp = 0.2
-    real(8), parameter :: density = 0.1
-    real(8), parameter :: fracimportant = 0.3
+    real(8), parameter :: restartp = 0.2D0
+    real(8), parameter :: density = 0.3D0
+    real(8), parameter :: fracimportant = 0.3D0
+    real(8), parameter :: rho = 2.0D0
 
     ! ARGUMENTS
     integer :: n
@@ -163,7 +164,7 @@ contains
     intent(in ) :: n
 
     ! LOCAL SCALARS
-    integer :: i,j,nlinks,start
+    integer :: i,j,k,nlinks,start,pos
     real(8) :: rnumber,s
 
     ! LOCAL ARRAYS
@@ -190,10 +191,10 @@ contains
 
     nlinks = 0
 
-    do while (nlinks / (1.0D0 * n) .lt. density)
+    do while (nlinks / (1.0D0 * n ** 2) .lt. density)
 
        CALL RANDOM_NUMBER(rnumber)
-       pos = INT(rnumber * (n*n - start)) + start
+       pos = INT(rnumber * (n ** 2 - start)) + start
        
        i = 1 + INT(links(pos) / n)
        j = links(pos) - (i - 1) * n
@@ -211,26 +212,46 @@ contains
        do i = 1,n
           s = s + E(i,j)
        end do
-       do i = 1,n
-          Eb(i,j) = max(1.0D0 / (1.0D0 * n), E(i,j) / s)
-       end do
+       if (s .eq. 0.0D0) then
+          do i = 1,n
+             Eb(i,j) = 1.0D0 / (1.0D0 * n)
+          end do
+       else
+          do i = 1,n
+             Eb(i,j) = E(i,j) / s
+          end do
+       end if
     end do
 
     do i = 1,n
        do j = 1,n          
-          s = - Eb(j,i) - Eb(i,j)
+          s = - Eb(j,i) - Eb(i,j) + 2.0D0 * rho
           if (i .eq. j) then
              s = s + 1.0D0
           end if
           do k = 1,n
-             s = s + Eb(k,i) * Eb(j,k)
+             s = s + Eb(k,i) * Eb(k,j)
           end do
           A(i,j) = s
        end do
     end do
 
     do i = 1,n
-       b(i) = 0.0D0
+       b(i) = 2.0D0 * rho
+    end do
+
+    do i = 1,n
+       write(*,*) (E(i,j), j = 1,n)
+    end do
+    write(*,*)
+
+    do i = 1,n
+       write(*,*) (Eb(i,j), j = 1,n)
+    end do
+    write(*,*)
+
+    do i = 1,n
+       write(*,*) (A(i,j), j = 1,n)
     end do
 
   end subroutine genRandStochSystem
