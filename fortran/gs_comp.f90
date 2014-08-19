@@ -15,10 +15,12 @@ PROGRAM gs_comp
   ! LOCAL SCALARS
   real(8) :: r,mr,msdiff,mt,miter
   integer :: i,k,n,status,rsize,t1,t2,clock_rate,clock_max,iter, &
-       trials
+       trials,nfailed,type
   
   write(*,*) "Type dimension and number of trials..."
   read(*,*) n,trials
+  write(*,*) "1- Diagonal Dominant 2- Stochastic Least Squares"
+  read(*,*) type
 
   allocate(M(n,n),b(n),x(n),rv(n),sol(n),STAT=status)
 
@@ -38,6 +40,7 @@ PROGRAM gs_comp
 
   CALL RANDOM_SEED(PUT=seed)
 
+  nfailed = 0
   mt = 0.0D0
   mr = 0.0D0
   miter = 0.0D0
@@ -45,10 +48,13 @@ PROGRAM gs_comp
 
   do k = 1,trials
 
-     write(*,*) 'Entrou...'
-     call genRandStochSystem(n,M,b,sol)
-     write(*,*) 'Acabou...'
-
+     if (type .eq. 1) then
+        call genDDRandSystem(n,M,b,sol)
+     else if (type .eq. 2) then
+        call genRandStochSystem(n,M,b,sol)
+     else
+        exit
+     end if
 
      do i = 1,n
         x(i) = 0.0D0
@@ -60,19 +66,24 @@ PROGRAM gs_comp
 
      CALL SYSTEM_CLOCK(t2,clock_rate,clock_max)
      
-     miter = miter + iter / (1.0D0 * trials)
-     mt = mt + (t2 - t1) / (1.0D0 * clock_rate * trials)
-     mr = mr + r / (1.0D0 * trials)
-     msdiff = msdiff + maxval(abs(x - sol)) / (1.0D0 * trials)
+     if (r .gt. TOL) then
+        nfailed = nfailed + 1
+     else 
+        miter = miter + iter / (1.0D0 * trials)
+        mt = mt + (t2 - t1) / (1.0D0 * clock_rate * trials)
+        mr = mr + r / (1.0D0 * trials)
+        msdiff = msdiff + maxval(abs(x - sol)) / (1.0D0 * trials)
+     end if
 
   end do
 
-  write(*,9000) mr,mt,INT(miter),msdiff
+  write(*,9000) mr,mt,INT(miter),msdiff,(1.0D+2 * nfailed) / trials
      
   write(*,*) "Starting parallel..."
 
   CALL RANDOM_SEED(PUT=seed)
 
+  nfailed = 0
   mt = 0.0D0
   mr = 0.0D0
   miter = 0.0D0
@@ -80,7 +91,13 @@ PROGRAM gs_comp
 
   do k = 1,trials
 
-     call genRandStochSystem(n,M,b,sol)
+     if (type .eq. 1) then
+        call genDDRandSystem(n,M,b,sol)
+     else if (type .eq. 2) then
+        call genRandStochSystem(n,M,b,sol)
+     else
+        exit
+     end if
 
      do i = 1,n
         x(i) = 0.0D0
@@ -92,20 +109,25 @@ PROGRAM gs_comp
  
      CALL SYSTEM_CLOCK(t2,clock_rate,clock_max)
 
-     miter = miter + iter / (1.0D0 * trials)
-     mt = mt + (t2 - t1) / (1.0D0 * clock_rate * trials)
-     mr = mr + r / (1.0D0 * trials)
-     msdiff = msdiff + maxval(abs(x - sol)) / (1.0D0 * trials)
+     if (r .gt. TOL) then
+        nfailed = nfailed + 1
+     else
+        miter = miter + iter / (1.0D0 * trials)
+        mt = mt + (t2 - t1) / (1.0D0 * clock_rate * trials)
+        mr = mr + r / (1.0D0 * trials)
+        msdiff = msdiff + maxval(abs(x - sol)) / (1.0D0 * trials)
+     end if
 
   end do
 
-  write(*,9000) mr,mt,INT(miter),msdiff
+  write(*,9000) mr,mt,INT(miter),msdiff,(1.0D+2 * nfailed) / trials
 !  write(*,2000) x
 !  write(*,2000) sol
 
 2000 FORMAT(/,'Point:',/,3(1X,E20.10))
 9000 FORMAT('RESIDUAL:',1X,D12.5,1X,'TIME (in secs):',1X,F10.4,&
-          1X,'ITERATIONS:',1X,I8,1X,'DIFF',1X,D12.5)
+          1X,'ITERATIONS:',1X,I8,1X,'DIFF',1X,D12.5,1X,&
+          'FAILED:',1X,F6.2,'%')
 
 contains
 
