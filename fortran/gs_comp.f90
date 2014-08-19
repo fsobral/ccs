@@ -45,7 +45,10 @@ PROGRAM gs_comp
 
   do k = 1,trials
 
+     write(*,*) 'Entrou...'
      call genRandStochSystem(n,M,b,sol)
+     write(*,*) 'Acabou...'
+
 
      do i = 1,n
         x(i) = 0.0D0
@@ -107,6 +110,8 @@ PROGRAM gs_comp
 contains
 
   subroutine genDDRandSystem(n,A,b,sol)
+
+    implicit none
     
     ! Generates a random diagonal dominant linear system
 
@@ -125,10 +130,10 @@ contains
        s = 0.0D0
        do j = 2,n
           CALL RANDOM_NUMBER(rnumber)
-          M(i,j) = - n + 2 * n * rnumber
-          s = s + abs(M(i,j))
+          A(i,j) = - n + 2 * n * rnumber
+          s = s + abs(A(i,j))
        end do
-       M(i,i) = s + 1.0D0
+       A(i,i) = s + 1.0D0
     end do
 
     do i = 1,n
@@ -146,6 +151,8 @@ contains
   end subroutine genDDRandSystem
 
   subroutine genRandStochSystem(n,A,b,sol)
+    
+    implicit none
 
     ! Generates a linear system associated with the gradient of a
     ! least squares problem created with a stochastic matrix.
@@ -169,8 +176,7 @@ contains
 
     ! LOCAL ARRAYS
     real(8) :: Eb(n,n)
-    integer :: E(n,n)
-    integer :: links(n*n)
+    integer :: E(n,n),links(n * n)
     
     start = 1
 
@@ -196,7 +202,7 @@ contains
        CALL RANDOM_NUMBER(rnumber)
        pos = INT(rnumber * (n ** 2 - start)) + start
        
-       i = 1 + INT(links(pos) / n)
+       i = 1 + INT((links(pos) - 1) / n)
        j = links(pos) - (i - 1) * n
 
        E(i,j) = 1
@@ -240,19 +246,19 @@ contains
        b(i) = 2.0D0 * rho
     end do
 
-    do i = 1,n
-       write(*,*) (E(i,j), j = 1,n)
-    end do
-    write(*,*)
-
-    do i = 1,n
-       write(*,*) (Eb(i,j), j = 1,n)
-    end do
-    write(*,*)
-
-    do i = 1,n
-       write(*,*) (A(i,j), j = 1,n)
-    end do
+!!$    do i = 1,n
+!!$       write(*,*) (E(i,j), j = 1,n)
+!!$    end do
+!!$    write(*,*)
+!!$
+!!$    do i = 1,n
+!!$       write(*,*) (Eb(i,j), j = 1,n)
+!!$    end do
+!!$    write(*,*)
+!!$
+!!$    do i = 1,n
+!!$       write(*,*) (A(i,j), j = 1,n)
+!!$    end do
 
   end subroutine genRandStochSystem
 
