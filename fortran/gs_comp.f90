@@ -17,9 +17,10 @@ PROGRAM gs_comp
   integer :: i,k,n,status,rsize,t1,t2,clock_rate,clock_max,iter, &
        trials,nfailed,type
   
-  write(*,*) "Type dimension and number of trials..."
+  write(*,*) 'Type dimension and number of trials...'
   read(*,*) n,trials
-  write(*,*) "1- Diagonal Dominant 2- Stochastic Least Squares"
+  write(*,*) '1- Diagonal Dominant 2- Stochastic Least Squares'
+  write(*,*) '3- Symmetric Positive Definite'
   read(*,*) type
 
   allocate(M(n,n),b(n),x(n),rv(n),sol(n),STAT=status)
@@ -52,7 +53,10 @@ PROGRAM gs_comp
         call genDDRandSystem(n,M,b,sol)
      else if (type .eq. 2) then
         call genRandStochSystem(n,M,b,sol)
+     else if (type .eq. 3) then
+        call genRandPositiveMatrix(n,M,b,sol)
      else
+        write(*,*) 'Invalid type.'
         exit
      end if
 
@@ -95,7 +99,10 @@ PROGRAM gs_comp
         call genDDRandSystem(n,M,b,sol)
      else if (type .eq. 2) then
         call genRandStochSystem(n,M,b,sol)
+     else if (type .eq. 3) then
+        call genRandPositiveMatrix(n,M,b,sol)
      else
+        write(*,*) 'Invalid type.'
         exit
      end if
 
@@ -121,7 +128,7 @@ PROGRAM gs_comp
   end do
 
   write(*,9000) mr,mt,INT(miter),msdiff,(1.0D+2 * nfailed) / trials
-!  write(*,2000) x
+  write(*,2000) x
 !  write(*,2000) sol
 
 2000 FORMAT(/,'Point:',/,3(1X,E20.10))
@@ -177,12 +184,11 @@ contains
     implicit none
 
     ! Generates a linear system associated with the gradient of a
-    ! least squares problem created with a stochastic matrix.
+    ! least squares problem created with a stochastic matrix (See
+    ! Nesterov's paper).
 
     ! PARAMETERS
-    real(8), parameter :: restartp = 0.2D0
     real(8), parameter :: density = 0.3D0
-    real(8), parameter :: fracimportant = 0.3D0
     real(8), parameter :: rho = 2.0D0
 
     ! ARGUMENTS
@@ -268,20 +274,67 @@ contains
        b(i) = 2.0D0 * rho
     end do
 
-!!$    do i = 1,n
-!!$       write(*,*) (E(i,j), j = 1,n)
-!!$    end do
-!!$    write(*,*)
-!!$
-!!$    do i = 1,n
-!!$       write(*,*) (Eb(i,j), j = 1,n)
-!!$    end do
-!!$    write(*,*)
-!!$
-!!$    do i = 1,n
-!!$       write(*,*) (A(i,j), j = 1,n)
-!!$    end do
-
   end subroutine genRandStochSystem
+
+  subroutine genRandPositiveMatrix(n,A,b,sol)
+
+    ! PARAMETERS
+    real(8) :: semiprob = 8.0D-1
+
+    ! ARGUMENTS
+    integer :: n
+    real(8) :: A(n,n),b(n),sol(n)
+
+    intent(out) :: A,b,sol
+    intent(in ) :: n
+
+    ! LOCAL ARRAYS
+    real(8) :: L(n,n)
+    
+    ! LOCAL SCALARS
+    integer :: i,j,k
+    real(8) :: rnumber
+
+    do j = 1,n
+       ! The diagonal element must be non-negative
+       CALL RANDOM_NUMBER(rnumber)
+       L(j,j) = 1.0D0 + n * rnumber
+       CALL RANDOM_NUMBER(rnumber)
+       if (rnumber .le. semiprob) then
+          L(j,j) = 1.0D-1 + rnumber * 1.0D-1
+       end if
+       do i = j+1,n
+          CALL RANDOM_NUMBER(rnumber)
+          L(i,j) = - n + 2.0D0 * n * rnumber
+       end do
+    end do
+
+    do j = 1,n
+       do i = 1,n
+          A(i,j) = 0.0D0
+       end do
+    end do
+
+    do j = 1,n
+       do i = 1,j
+          do k = 1,n
+             A(k,j) = A(k,j) + L(k,i) * L(j,i)
+          end do
+       end do
+    end do
+
+    do i = 1,n
+       CALL RANDOM_NUMBER(rnumber)
+       sol(i) = - n + 2 * n * rnumber
+       b(i) = 0.0D0
+    end do
+
+    do j = 1,n
+       do i = 1,n
+          b(i) = b(i) + A(i,j) * sol(j)
+       end do
+    end do       
+
+  end subroutine genRandPositiveMatrix
 
 END PROGRAM gs_comp
