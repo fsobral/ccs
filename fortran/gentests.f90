@@ -145,7 +145,7 @@ contains
   subroutine genRandPositiveMatrix(n,A,b,sol)
 
     ! PARAMETERS
-    real(8) :: semiprob = 8.0D-1
+    real(8) :: semiprob = 5.0D-1
 
     ! ARGUMENTS
     integer :: n
@@ -154,26 +154,89 @@ contains
     intent(out) :: A,b,sol
     intent(in ) :: n
 
-    ! LOCAL ARRAYS
-    real(8) :: L(n,n)
-    
     ! LOCAL SCALARS
-    integer :: i,j,k
+    integer :: i,j
+    real(8) :: rnumber
+
+    call genRandDP(n,A,semiprob)
+
+    do i = 1,n
+       CALL RANDOM_NUMBER(rnumber)
+       sol(i) = - n + 2 * n * rnumber
+       b(i) = 0.0D0
+    end do
+
+    do j = 1,n
+       do i = 1,n
+          b(i) = b(i) + A(i,j) * sol(j)
+       end do
+    end do       
+
+!    do i = 1,n
+!       write(*,FMT='(15(1X,E9.2))') (A(i,j), j = 1,n)
+!    end do
+
+  end subroutine genRandPositiveMatrix
+
+  subroutine genRandCholL(n,L,prob)
+
+    ! PARAMETERS
+    real(8),parameter :: epsdiag = 1.0D-1
+
+    ! ARRAY ARGUMENTS
+    real(8) :: L(n,n)
+
+    ! SCALAR ARGUMENTS
+    integer :: n
+    real(8) :: prob
+
+    intent( in) :: prob,n
+    intent(out) :: L
+
+    ! LOCAL SCALARS
+    integer :: i,j
     real(8) :: rnumber
 
     do j = 1,n
+       do i = 1,j - 1 
+          L(i,j) = 0.0D0
+       end do
        ! The diagonal element must be non-negative
        CALL RANDOM_NUMBER(rnumber)
-       L(j,j) = 1.0D0 + n * rnumber
-       CALL RANDOM_NUMBER(rnumber)
-       if (rnumber .le. semiprob) then
-          L(j,j) = 1.0D-1 + rnumber * 1.0D-1
+       if (rnumber .lt. prob) then
+          CALL RANDOM_NUMBER(rnumber)
+          L(j,j) = epsdiag + rnumber * 1.0D-1
+       else
+          CALL RANDOM_NUMBER(rnumber)
+          L(j,j) = 1.0D0 + n * rnumber
        end if
        do i = j+1,n
           CALL RANDOM_NUMBER(rnumber)
           L(i,j) = - n + 2.0D0 * n * rnumber
        end do
     end do
+
+  end subroutine genRandCholL
+
+  subroutine genRandDP(n,A,prob)
+
+    ! ARRAY ARGUMENTS
+    real(8) :: A(n,n)
+
+    ! SCALAR ARGUMENTS
+    integer :: n
+    real(8) :: prob
+
+    intent( in) :: prob,n
+    intent(out) :: A
+
+    ! LOCAL SCALARS
+    integer :: i,j,k
+
+    ! LOCAL ARRAYS
+    real(8) :: L(n,n)
+
+    call genRandCholL(n,L,prob)
 
     do j = 1,n
        do i = 1,n
@@ -189,18 +252,17 @@ contains
        end do
     end do
 
-    do i = 1,n
-       CALL RANDOM_NUMBER(rnumber)
-       sol(i) = - n + 2 * n * rnumber
-       b(i) = 0.0D0
-    end do
+!!$    do i = 1,n
+!!$       do j = 1,n
+!!$          tmp = 0.0D0
+!!$          do k = 1,n
+!!$             tmp = tmp + L(i,k) * L(j,k)
+!!$          end do
+!!$          A(i,j) = tmp
+!!$       end do
+!!$    end do
 
-    do j = 1,n
-       do i = 1,n
-          b(i) = b(i) + A(i,j) * sol(j)
-       end do
-    end do       
-
-  end subroutine genRandPositiveMatrix
+  end subroutine genRandDP
+  
 
 end module gentests

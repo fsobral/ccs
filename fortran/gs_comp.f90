@@ -6,7 +6,7 @@ PROGRAM gs_comp
   implicit none
 
   ! PARAMETERS
-  integer, parameter :: MAXIT = 1000
+  integer, parameter :: MAXIT = 100000
   real(8), parameter :: TOL = 1.0D-5
 
   ! LOCAL ARRAYS
@@ -16,7 +16,7 @@ PROGRAM gs_comp
   ! LOCAL SCALARS
   real(8) :: r,mr,msdiff,mt,miter
   integer :: i,k,n,status,rsize,t1,t2,clock_rate,clock_max,iter, &
-       trials,nfailed,type
+       trials,strials,nfailed,type
   
   write(*,*) 'Type dimension and number of trials...'
   read(*,*) n,trials
@@ -71,18 +71,22 @@ PROGRAM gs_comp
 
      CALL SYSTEM_CLOCK(t2,clock_rate,clock_max)
      
-     if (r .gt. TOL) then
+     if (r .le. TOL) then
+        miter = miter + iter
+        mt = mt + (t2 - t1)
+        mr = mr + r
+        msdiff = msdiff + maxval(abs(x - sol))
+     else
         nfailed = nfailed + 1
-     else 
-        miter = miter + iter / (1.0D0 * trials)
-        mt = mt + (t2 - t1) / (1.0D0 * clock_rate * trials)
-        mr = mr + r / (1.0D0 * trials)
-        msdiff = msdiff + maxval(abs(x - sol)) / (1.0D0 * trials)
      end if
 
   end do
 
-  write(*,9000) mr,mt,INT(miter),msdiff,(1.0D+2 * nfailed) / trials
+  strials = trials - nfailed
+
+  write(*,9000) mr / (1.0D0 * strials),mt / (1.0D0 * clock_rate * strials), &
+       INT(miter / (1.0D0 * strials)),msdiff / (1.0D0 * strials), &
+       (1.0D+2 * nfailed) / trials
      
   write(*,*) "Starting parallel..."
 
@@ -117,19 +121,24 @@ PROGRAM gs_comp
  
      CALL SYSTEM_CLOCK(t2,clock_rate,clock_max)
 
-     if (r .gt. TOL) then
-        nfailed = nfailed + 1
+     if (r .le. TOL) then
+        miter = miter + iter
+        mt = mt + (t2 - t1)
+        mr = mr + r
+        msdiff = msdiff + maxval(abs(x - sol))
      else
-        miter = miter + iter / (1.0D0 * trials)
-        mt = mt + (t2 - t1) / (1.0D0 * clock_rate * trials)
-        mr = mr + r / (1.0D0 * trials)
-        msdiff = msdiff + maxval(abs(x - sol)) / (1.0D0 * trials)
+        nfailed = nfailed + 1
      end if
 
   end do
 
-  write(*,9000) mr,mt,INT(miter),msdiff,(1.0D+2 * nfailed) / trials
-  write(*,2000) x
+  strials = trials - nfailed
+
+  write(*,9000) mr / (1.0D0 * strials),mt / (1.0D0 * clock_rate * strials), &
+       INT(miter / (1.0D0 * strials)),msdiff / (1.0D0 * strials), &
+       (1.0D+2 * nfailed) / trials
+     
+!  write(*,2000) x
 !  write(*,2000) sol
 
 2000 FORMAT(/,'Point:',/,3(1X,E20.10))
