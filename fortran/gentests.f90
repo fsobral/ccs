@@ -4,6 +4,9 @@ module gentests
 
 contains
 
+! ---------------------------------------------------------- !
+! ---------------------------------------------------------- !
+
   subroutine genDDRandSystem(n,A,b,sol)
 
     implicit none
@@ -44,6 +47,9 @@ contains
     end do       
 
   end subroutine genDDRandSystem
+
+! ---------------------------------------------------------- !
+! ---------------------------------------------------------- !
 
   subroutine genRandStochSystem(n,A,b,sol)
     
@@ -142,27 +148,46 @@ contains
 
   end subroutine genRandStochSystem
 
-  subroutine genRandPositiveMatrix(n,A,b,sol)
+! ---------------------------------------------------------- !
+! ---------------------------------------------------------- !
 
-    ! PARAMETERS
-    real(8) :: semiprob = 5.0D-1
+  subroutine genRandSDPSystem(n,A,b,sol,semiprob,magnitude)
+
+    ! This subroutine creates a symmetric linear system.
+    !
+    ! On entry:
+    !
+    ! n: dimension of the problem
+    !
+    ! semiprob: probability that an eigenvalue of the matrix A will be
+    ! "near" zero
+    !
+    ! magnitude: range of the random values. If negative, the matrix A
+    ! may be indefinite
+    !
+    ! On exit
+    !
+    ! The (n x n) system Ax = b with solution 'sol'
+
 
     ! ARGUMENTS
     integer :: n
+    real(8) :: magnitude,semiprob
     real(8) :: A(n,n),b(n),sol(n)
 
     intent(out) :: A,b,sol
-    intent(in ) :: n
+    intent(in ) :: n,magnitude,semiprob
 
     ! LOCAL SCALARS
     integer :: i,j
     real(8) :: rnumber
 
-    call genRandDP(n,A,semiprob)
+    ! Creates a symmetric matrix
+    call genRandHouseDP(n,A,semiprob,magnitude)
 
     do i = 1,n
        CALL RANDOM_NUMBER(rnumber)
-       sol(i) = - n + 2 * n * rnumber
+       sol(i) = - abs(magnitude) + 2 * abs(magnitude) * rnumber
        b(i) = 0.0D0
     end do
 
@@ -172,16 +197,17 @@ contains
        end do
     end do       
 
-!    do i = 1,n
-!       write(*,FMT='(15(1X,E9.2))') (A(i,j), j = 1,n)
-!    end do
+  end subroutine genRandSDPSystem
 
-  end subroutine genRandPositiveMatrix
+! ---------------------------------------------------------- !
+! ---------------------------------------------------------- !
 
   subroutine genRandCholL(n,L,prob)
+    
+    ! This subroutine does not work!!!!
 
     ! PARAMETERS
-    real(8),parameter :: epsdiag = 1.0D-1
+    real(8),parameter :: epsdiag = 1.0D-5
 
     ! ARRAY ARGUMENTS
     real(8) :: L(n,n)
@@ -205,7 +231,7 @@ contains
        CALL RANDOM_NUMBER(rnumber)
        if (rnumber .lt. prob) then
           CALL RANDOM_NUMBER(rnumber)
-          L(j,j) = epsdiag + rnumber * 1.0D-1
+          L(j,j) = (1.0D0 + rnumber) * epsdiag
        else
           CALL RANDOM_NUMBER(rnumber)
           L(j,j) = 1.0D0 + n * rnumber
@@ -217,6 +243,53 @@ contains
     end do
 
   end subroutine genRandCholL
+
+! ---------------------------------------------------------- !
+! ---------------------------------------------------------- !
+
+  subroutine genHouseholderOrt(n,Q,magnitude)
+    ! This subroutine generates an randomly generated orthogonal
+    ! Householder matrix:
+    !
+    ! I - 2 * (u * u^T) / (u^T * u)
+    !
+    ! and returns such matrix in Q
+
+    ! SCALAR ARGUMENTS
+    integer :: n
+    real(8) :: magnitude
+
+    ! ARRAY ARGUMENTS
+    real(8) :: Q(n,n)
+
+    intent( in) :: n,magnitude
+    intent(out) :: Q
+
+    ! LOCAL SCALARS
+    integer :: i,j
+    real(8) :: rnumber,dp
+    
+    ! LOCAL ARRAYS
+    real(8) :: u(n)
+
+    dp = 0.0D0
+    do i = 1,n
+       CALL RANDOM_NUMBER(rnumber)
+       u(i) = - abs(magnitude) + 2.0D0 * abs(magnitude) * rnumber
+       dp = dp + u(i) ** 2.0D0
+    end do
+    
+    do j = 1,n
+       do i = 1,n
+          Q(i,j) = - 2.0D0 * u(i) * u(j) / dp
+       end do
+       Q(j,j) = Q(j,j) + 1.0D0
+    end do
+
+  end subroutine genHouseholderOrt
+
+! ---------------------------------------------------------- !
+! ---------------------------------------------------------- !
 
   subroutine genRandDP(n,A,prob)
 
@@ -252,17 +325,77 @@ contains
        end do
     end do
 
-!!$    do i = 1,n
-!!$       do j = 1,n
-!!$          tmp = 0.0D0
-!!$          do k = 1,n
-!!$             tmp = tmp + L(i,k) * L(j,k)
-!!$          end do
-!!$          A(i,j) = tmp
-!!$       end do
-!!$    end do
-
   end subroutine genRandDP
   
+! ---------------------------------------------------------- !
+! ---------------------------------------------------------- !
+
+  subroutine genRandHouseDP(n,A,prob,magnitude)
+    ! This subroutine generates a random symmetric matrix A with
+    ! dimension n.
+    !
+    ! prob: is the probability of a eigenvalue to be very near to zero
+    !
+    ! magnitude: if is positive, defines the range of random
+    ! values. If is negative, also defines this range, but the matrix
+    ! has chance to be indefinite
+
+
+    ! PARAMETERS
+    real(8),parameter :: epsdiag = 1.0D-5
+
+    ! ARRAY ARGUMENTS
+    real(8) :: A(n,n)
+
+    ! SCALAR ARGUMENTS
+    integer :: n
+    real(8) :: prob,magnitude
+
+    intent( in) :: prob,n,magnitude
+    intent(out) :: A
+
+    ! LOCAL SCALARS
+    integer :: i,j,k
+    real(8) :: rnumber
+
+    ! LOCAL ARRAYS
+    real(8) :: Q(n,n),d(n)
+
+    call genHouseholderOrt(n,Q,magnitude)
+
+    ! Generates a random diagonal matrix D and calculates Q * D * Q^t
+
+    do i = 1,n
+       CALL RANDOM_NUMBER(rnumber)
+       if (rnumber .lt. prob) then
+          ! Semi-definite positiveness probability
+          CALL RANDOM_NUMBER(rnumber)
+          d(i) = (1.0D0 + rnumber) * epsdiag
+       else if (magnitude .gt. 0.0D0) then
+          ! Matrix is positive definite
+          CALL RANDOM_NUMBER(rnumber)
+          d(i) = epsdiag + magnitude * rnumber
+       else
+          ! Matrix is indefinite
+          CALL RANDOM_NUMBER(rnumber)
+          d(i) = - abs(magnitude) + 2.0D0 * abs(magnitude) * rnumber          
+       end if
+    end do
+    
+    do j = 1,n
+       do i = 1,n
+          A(i,j) = 0.0D0
+       end do
+    end do
+
+    do j = 1,n
+       do i = 1,n
+          do k = 1,n
+             A(k,j) = A(k,j) + Q(k,i) * Q(j,i) * d(i)
+          end do
+       end do
+    end do
+
+  end subroutine genRandHouseDP
 
 end module gentests

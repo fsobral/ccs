@@ -21,7 +21,9 @@ PROGRAM gs_comp
   write(*,*) 'Type dimension and number of trials...'
   read(*,*) n,trials
   write(*,*) '1- Diagonal Dominant 2- Stochastic Least Squares'
-  write(*,*) '3- Symmetric Positive Definite'
+  write(*,*) '3- Symmetric Definite Positive'
+  write(*,*) '4- Symmetric Semi-Definite Positive'
+  write(*,*) '5- Symmetric Indefinite'
   read(*,*) type
 
   allocate(M(n,n),b(n),x(n),rv(n),sol(n),STAT=status)
@@ -55,7 +57,11 @@ PROGRAM gs_comp
      else if (type .eq. 2) then
         call genRandStochSystem(n,M,b,sol)
      else if (type .eq. 3) then
-        call genRandPositiveMatrix(n,M,b,sol)
+        call genRandSDPSystem(n,M,b,sol,0.0D0,1.0D0 * n)
+     else if (type .eq. 4) then
+        call genRandSDPSystem(n,M,b,sol,4.0D-1,1.0D0 * n)
+     else if (type .eq. 5) then
+        call genRandSDPSystem(n,M,b,sol,2.0D-1,- 1.0D0 * n)
      else
         write(*,*) 'Invalid type.'
         exit
@@ -105,7 +111,11 @@ PROGRAM gs_comp
      else if (type .eq. 2) then
         call genRandStochSystem(n,M,b,sol)
      else if (type .eq. 3) then
-        call genRandPositiveMatrix(n,M,b,sol)
+        call genRandSDPSystem(n,M,b,sol,0.0D0,1.0D0 * n)
+     else if (type .eq. 4) then
+        call genRandSDPSystem(n,M,b,sol,4.0D-1,1.0D0 * n)
+     else if (type .eq. 5) then
+        call genRandSDPSystem(n,M,b,sol,2.0D-1,- 1.0D0 * n)
      else
         write(*,*) 'Invalid type.'
         exit
@@ -141,7 +151,7 @@ PROGRAM gs_comp
 !  write(*,2000) x
 !  write(*,2000) sol
 
-2000 FORMAT(/,'Point:',/,3(1X,E20.10))
+!2000 FORMAT(/,'Point:',/,3(1X,E20.10))
 9000 FORMAT('RESIDUAL:',1X,D12.5,1X,'TIME (in secs):',1X,F10.4,&
           1X,'ITERATIONS:',1X,I8,1X,'DIFF',1X,D12.5,1X,&
           'FAILED:',1X,F6.2,'%')
