@@ -4,7 +4,7 @@ module newton
 
 contains
 
-  subroutine tnmin_serial(n,x,func,grad,hess,epslin,epsopt,maxit)
+  subroutine tnmin_serial(n,x,func,grad,hess,epslin,epsopt,maxit,flag)
     
     use gs
 
@@ -15,7 +15,7 @@ contains
     ! uses serial Gauss-Seidel for solving the linear systems.
 
     ! SCALAR ARGUMENTS
-    integer :: n,maxit
+    integer :: n,maxit,flag
     real(8) :: epslin,epsopt
 
     ! ARRAY ARGUMENTS
@@ -47,14 +47,23 @@ contains
     end INTERFACE
 
     ! LOCAL SCALARS
-    integer :: i,iter,initer,inmaxit
-    real(8) :: f,gnorm,r
+    integer :: i,iter,initer,inmaxit,status
+    real(8) :: f,gnorm,r,inepsilon
 
     ! LOCAL ARRAYS
     real(8), allocatable :: d(:),g(:),h(:,:)
     
     
-    allocate(d(n),g(n),h(n,n)) ! Pegar o erro aqui!
+    allocate(d(n),g(n),h(n,n),STAT=status) ! Pegar o erro aqui!
+
+    if (status .ne. 0) then
+       write(*,*) 'Memory problems'
+       flag = -1
+
+       stop
+    end if
+
+    ! Initial calculations
 
     call func(n,x,f)
     call grad(n,x,g)
@@ -65,17 +74,27 @@ contains
        gnorm = max(gnorm,abs(g(i)))
     end do
 
-    iter = 0
+    iter = 1
+
+    inepsilon = 1.0D0;
+
+    inmaxit = maxit / 10
+
+    ! Main loop
 
     do while (gnorm .gt. epsopt .and. iter .le. maxit) 
 
        write(*,FMT=9000)iter,f,gnorm
 
-       call hess(n,x,h)
-
        ! Calculates the step
 
-       call serialgs(n,h,g,d,r,initer,epsopt,inmaxit)
+       call hess(n,x,h)
+
+       inepsilon = max(epsopt,inepsilon / 2.0D0)
+
+       call serialgs(n,h,g,d,r,initer,inepsilon,inmaxit)
+
+       write(*,FMT=9010)initer,r
 
        ! Updates the point
 
@@ -96,9 +115,12 @@ contains
 
     end do
 
+    write(*,FMT=9000)iter,f,gnorm
+
     deallocate(d,g,h)
 
-9000 FORMAT('Iter:',1X,I010,1X,'F=',1X,E10.4,1X,'NORMG=',1X,E10.4)
+9000 FORMAT('Iter:',1X,I0.5,1X,'F=',1X,E10.4,1X,'NORMG=',1X,E10.4)
+9010 FORMAT('Inner GS took',1X,I0.5,1X,'iterations.',1X,'RESIDUAL=',1X,E10.4)
 
   end subroutine tnmin_serial
 
