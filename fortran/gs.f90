@@ -37,7 +37,7 @@ CONTAINS
 
        ! STOPPING CRITERIUM
 
-       r = 0
+       r = 0.0D0
        do i = 1,n
           r = max(r,abs(prev(i) - x(i)))
           if (r .gt. eps) then
