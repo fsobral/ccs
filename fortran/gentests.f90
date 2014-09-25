@@ -131,9 +131,9 @@ contains
 
     do i = 1,n
        do j = 1,n          
-          s = - Eb(j,i) - Eb(i,j) + 2.0D0 * rho
+          s = - Eb(j,i) - Eb(i,j)
           if (i .eq. j) then
-             s = s + 1.0D0
+             s = s + 1.0D0 + 2.0D0 * rho
           end if
           do k = 1,n
              s = s + Eb(k,i) * Eb(k,j)
