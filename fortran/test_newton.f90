@@ -4,16 +4,19 @@ program test_newton
 
   implicit none
 
-  integer :: n,maxit,flag,i
+  integer :: n,maxit,flag,i,type
   real(8),allocatable :: x(:),d(:)
   real(8) :: epslin,epsopt
 
   epslin = 1.0D-8
   epsopt = 1.0D-8
-  maxit = 100000000
+  maxit = 100000
 
   write(*,*) 'Digite n'
   read(*,*) n
+
+  write(*,*) '1- Truncated Newton 2- Async Truncated Newton'
+  read(*,*) type
 
   allocate(x(n),d(n))
 
@@ -22,7 +25,14 @@ program test_newton
      d(i) =  0.0D0
   end do
 
-  call tnmin_async(n,x,d,func,grad,hess,epslin,epsopt,maxit,flag)
+  if (type .eq. 1) then
+     call tnmin_serial(n,x,func,grad,hess,epslin,epsopt,maxit,flag)
+  elseif (type .eq. 2) then
+     call tnmin_async(n,x,d,func,grad,hess,epslin,epsopt,maxit,flag)
+  else
+     write(*,*) 'Unknown type'
+     stop
+  end if
 
   deallocate(x,d)
 
@@ -38,7 +48,7 @@ contains
     f = 0.0D0
     do i = 1,n - 1
        f = f + (1.0D0 - x(i)) ** 2.0D0 &
-             + 100.0D0 * (x(i + 1) - x(i) ** 2.0D0) ** 2.0D0
+             + 1.0D+2 * (x(i + 1) - x(i) ** 2.0D0) ** 2.0D0
     end do
 
   end subroutine func
@@ -68,7 +78,7 @@ contains
 
     integer :: i,j
 
-    do j = 2,n - 1
+    do j = 1,n - 1
        h(j,j + 1) = - 4.0D+2 * x(j)
        h(j + 1,j) = h(j,j + 1)
        do i = j + 2,n
@@ -77,7 +87,7 @@ contains
        end do
        h(j,j) = 2.02D+2 + 1.2D+3 * x(j) ** 2.0D0 - 4.0D+2 * x(j + 1)
     end do
-    h(1,1) = 2.0D0 + 1.2D+3 * x(1) ** 2.0D0 - 4.0D+2 * x(2)
+    h(1,1) = h(1,1) - 2.0D+2
     h(n,n) = 2.0D+2
 
   end subroutine hess
