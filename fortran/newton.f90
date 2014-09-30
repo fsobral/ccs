@@ -84,17 +84,17 @@ contains
 
     do while (gnorm .gt. epsopt .and. iter .le. maxit) 
 
-       write(*,FMT=9000)iter,f,gnorm
+!       write(*,FMT=9000)iter,f,gnorm
 
        ! Calculates the step
 
        call hess(n,x,h)
 
-       inepsilon = max(epsopt,inepsilon / 2.0D0)
+       inepsilon = min(gnorm,sqrt(inepsilon))
 
        call serialgs(n,h,g,d,r,initer,inepsilon,inmaxit)
 
-       write(*,FMT=9010)initer,r
+!       write(*,FMT=9010)initer,r
 
        ! Updates the point
 
@@ -240,13 +240,12 @@ contains
     real(8) :: f,gnorm,inepsilon
 
     ! LOCAL ARRAYS
-    real(8), allocatable :: g(:),h(:,:)
-    real(8) :: r(start:end)
+    real(8), allocatable :: g(:),h(:,:),r(:)
 
     ! FUNCTIONS
     integer omp_get_thread_num
 
-    allocate(g(n),h(n,n),STAT=status)
+    allocate(g(n),h(n,n),r(n),STAT=status)
 
     if (status .ne. 0) then
        write(*,*) 'Memory problems'
@@ -279,7 +278,7 @@ contains
 
     do while (gnorm .gt. epsopt .and. iter .le. maxit) 
 
-       write(*,FMT=8000) proc,iter,f,gnorm
+!       write(*,FMT=8000) proc,iter,f,gnorm
 
        ! Calculates the step
 
@@ -295,7 +294,7 @@ contains
        end do
        call partialgs(n,h,g,d,r,start,end,initer,inepsilon,inmaxit)
 
-       write(*,FMT=8010) proc,initer,maxval(r)
+!       write(*,FMT=8010) proc,initer,maxval(r)
 
        ! Updates the point
 
@@ -318,7 +317,7 @@ contains
 
     write(*,FMT=8000) proc,iter,f,gnorm
 
-    deallocate(g,h)
+    deallocate(g,h,r)
 
 8000 FORMAT('Proc',1X,I2,1X,'Iter:',1X,I0.10,1X,'F=',1X,E10.4,1X,&
           'NORMG=',1X,E10.4)
